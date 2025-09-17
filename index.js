@@ -82,13 +82,47 @@ app.get('/admin', (req, res) => {
                             <label class="block text-sm font-medium mb-2">Countdown (Sekunden)</label>
                             <input type="number" id="countdownSec" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" value="600" required>
                         </div>
+                        
                         <div>
-                            <label class="block text-sm font-medium mb-2">Finaler Code</label>
-                            <input type="text" id="finalCode" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="FINAL123">
+                            <label class="block text-sm font-medium mb-2">Modus</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="radio" name="mode" value="shared" checked class="mr-2">
+                                    Shared Mode (alle Teams gleiche Fragen)
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="mode" value="individual" class="mr-2">
+                                    Individual Mode (jedes Team eigene Fragen)
+                                </label>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Level 1 Code</label>
-                            <input type="text" id="level1Code" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="LEVEL1">
+                        
+                        <div id="sharedMode">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Finaler Code</label>
+                                <input type="text" id="finalCode" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="FINAL123">
+                            </div>
+                            
+                            <div id="levelsSection">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-medium">Level</label>
+                                    <button type="button" id="addLevelBtn" class="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1 rounded">
+                                        Level hinzufügen
+                                    </button>
+                                </div>
+                                <div id="levelsList">
+                                    <div class="level-item mb-3 p-3 bg-gray-700 rounded">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <span class="text-sm font-medium">Level 1</span>
+                                            <button type="button" class="remove-level text-red-400 hover:text-red-300 text-sm">Entfernen</button>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <input type="text" class="level-prompt w-full p-2 bg-gray-600 border border-gray-500 rounded" placeholder="Frage eingeben" value="dfw">
+                                            <input type="text" class="level-code w-full p-2 bg-gray-600 border border-gray-500 rounded" placeholder="Antwort eingeben" value="LION">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg">
                             Event erstellen
@@ -195,14 +229,66 @@ app.get('/admin', (req, res) => {
             }
         }
 
+        // Level management
+        let levelCount = 1;
+        
+        document.getElementById('addLevelBtn').addEventListener('click', () => {
+            levelCount++;
+            const levelsList = document.getElementById('levelsList');
+            const newLevel = document.createElement('div');
+            newLevel.className = 'level-item mb-3 p-3 bg-gray-700 rounded';
+            newLevel.innerHTML = \`
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium">Level \${levelCount}</span>
+                    <button type="button" class="remove-level text-red-400 hover:text-red-300 text-sm">Entfernen</button>
+                </div>
+                <div class="space-y-2">
+                    <input type="text" class="level-prompt w-full p-2 bg-gray-600 border border-gray-500 rounded" placeholder="Frage eingeben">
+                    <input type="text" class="level-code w-full p-2 bg-gray-600 border border-gray-500 rounded" placeholder="Antwort eingeben">
+                </div>
+            \`;
+            levelsList.appendChild(newLevel);
+            
+            // Add remove functionality
+            newLevel.querySelector('.remove-level').addEventListener('click', () => {
+                newLevel.remove();
+            });
+        });
+        
+        // Remove level functionality for existing levels
+        document.querySelectorAll('.remove-level').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.level-item').remove();
+            });
+        });
+        
+        // Mode switching
+        document.querySelectorAll('input[name="mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                document.getElementById('sharedMode').style.display = e.target.value === 'shared' ? 'block' : 'none';
+            });
+        });
+
         document.getElementById('eventForm').addEventListener('submit', (e) => {
             e.preventDefault();
+            
+            const levels = [];
+            document.querySelectorAll('.level-item').forEach((item, index) => {
+                const prompt = item.querySelector('.level-prompt').value;
+                const code = item.querySelector('.level-code').value;
+                if (prompt && code) {
+                    levels.push({ index, prompt, code });
+                }
+            });
+            
             const formData = {
                 name: document.getElementById('eventName').value,
                 countdownSec: parseInt(document.getElementById('countdownSec').value),
+                mode: document.querySelector('input[name="mode"]:checked').value,
                 finalCode: document.getElementById('finalCode').value,
-                levels: [{ index: 0, prompt: "Level 1", code: document.getElementById('level1Code').value }]
+                levels: levels
             };
+            
             ws.send(JSON.stringify({ type: 'create_event', payload: formData }));
         });
 
